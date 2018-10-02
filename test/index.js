@@ -1,17 +1,20 @@
 const test = require('ava')
-const { createServer, wrap, validateRequest, validateResponse } = require('../')
+const { createServer, validateRequest, validateResponse } = require('../')
 const request = require('supertest')
-const { noop, each, always, should, props } = require('rvl-pipe')
+const { noop, each, always, should, props, equals, prop } = require('rvl-pipe')
 const axios = require('axios')
 
-const createMockApp = (url, endpointHandler) => ctx => {
-  ctx.app.use(url, wrap(endpointHandler))
-  ctx.app.post('/quit', (req, res) => {
-    res.send('closing..')
-    ctx.app.close()
-  })
-  return ctx
+const mockUserMiddleware = (req, res, next) => {
+  req.user = { id: 1234 }
+  next()
 }
+
+const createMockApp = (url, endpointHandler) => [{
+  method: 'use',
+  path: url,
+  fn: endpointHandler,
+  middlewares: [mockUserMiddleware]
+}]
 
 const createMockServer = (url, endpointHandler) => {
   return createServer(
@@ -84,6 +87,22 @@ test('GET 200', t => {
     checkResponseBody({ hello: 'world' })
   )({ noStart: true, t })
 })
+
+test('middleware is applied', t => {
+  return each(
+    createMockServer(
+      '/status',
+      each(
+        should(equals(prop('user.id'), always(1234)), 'InvalidMiddleware'),
+        always({ hello: 'world' })
+      )
+    ),
+    makeRequest('GET', '/status'),
+    checkResponse(200),
+    checkResponseBody({ hello: 'world' })
+  )({ noStart: true, t })
+})
+
 
 test('GET 404 (middleware)', t => {
   return each(
