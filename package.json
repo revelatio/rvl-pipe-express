@@ -1,10 +1,12 @@
 {
   "name": "rvl-pipe-express",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "lint": "standard"
+    "lint": "standard",
+    "test": "nyc ava --verbose",
+    "report": "nyc report --reporter=html"
   },
   "keywords": [],
   "author": "Ernesto Freyre",
@@ -14,10 +16,17 @@
     "body-parser": "^1.18.3",
     "cookie-parser": "^1.4.3",
     "express": "^4.16.3",
-    "morgan": "^1.9.1",
+    "ramda": "^0.25.0"
+  },
+  "peerDependencies": {
     "rvl-pipe": "latest"
   },
   "devDependencies": {
-    "standard": "^10.0.3"
+    "ava": "^0.25.0",
+    "axios": "^0.18.0",
+    "nyc": "^13.0.1",
+    "rvl-pipe": "latest",
+    "standard": "^10.0.3",
+    "supertest": "^3.3.0"
   }
 }
