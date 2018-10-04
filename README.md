@@ -1,7 +1,7 @@
 # rvl-pipe-express
 
 [![Build Status](https://travis-ci.com/revelatio/rvl-pipe-express.svg?branch=master)](https://travis-ci.com/revelatio/rvl-pipe-express)
-
+[![Coverage Status](https://coveralls.io/repos/github/revelatio/rvl-pipe-express/badge.svg?branch=master)](https://coveralls.io/github/revelatio/rvl-pipe-express?branch=master)
 [![Known Vulnerabilities](https://snyk.io/test/github/revelatio/rvl-pipe-express/badge.svg)](https://snyk.io/test/github/revelatio/rvl-pipe-express)
 
 A very small set of boilerplate functions to create an express server using [rvl-pipe](https://github.com/revelatio/rvl-pipe) async-style functions.
