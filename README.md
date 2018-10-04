@@ -1,5 +1,9 @@
 # rvl-pipe-express
 
+[![Build Status](https://travis-ci.com/revelatio/rvl-pipe-express.svg?branch=master)](https://travis-ci.com/revelatio/rvl-pipe-express)
+
+[![Known Vulnerabilities](https://snyk.io/test/github/revelatio/rvl-pipe-express/badge.svg)](https://snyk.io/test/github/revelatio/rvl-pipe-express)
+
 A very small set of boilerplate functions to create an express server using [rvl-pipe](https://github.com/revelatio/rvl-pipe) async-style functions.
 
 Abstracts some quirks of building a express server by only providing a set of path mappings to rvl-pipe async-style functions. You can add an initializer (mostly to connect to resources like DB or MQ) and middlewares to support most use cases of them on individual paths.
