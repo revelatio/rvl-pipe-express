@@ -314,7 +314,7 @@ test('server listening', t => {
   return each(
     createMockServer('/status', each(always({ hello: 'world' }))),
     startListening(),
-    makeHttpRequest('GET', 'http://localhost:3001/status'),
+    makeHttpRequest('GET', 'http://localhost:3000/status'),
     checkResponse(200),
     checkHttpResponseBody({ hello: 'world' })
   )({ t })

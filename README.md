@@ -2,13 +2,13 @@
 
 A very small set of boilerplate functions to create an express server using [rvl-pipe](https://github.com/revelatio/rvl-pipe) async-style functions.
 
-Abstracts some quirks of building a express server by only providing a set of path mappings to rvl-pipe async-style functions. You can also add an initializer (mostly to connect to resources like DB or MQ) and middlewares to support most use cases of them on individual paths.
+Abstracts some quirks of building a express server by only providing a set of path mappings to rvl-pipe async-style functions. You can add an initializer (mostly to connect to resources like DB or MQ) and middlewares to support most use cases of them on individual paths.
 
-Also includes a couple of very simple validation functions for request and response.
+Also includes a couple of very simple validation functions for verifying requests and responses.
 
 ## API
 
-API is comprised of only 4 functions. 2 for creating and starting a server and 2 helper function for validating input and output.
+API is comprised of only 4 functions. 2 for creating and starting a server and 2 helper function for validating request and response.
 
 - `createServer(routes: [Endpoint | Route]): AsyncPipeFunction`: Creates an async-pipe function that adds a pair of context properties: `app` and `express` (for extensibility). `app` will be initialized with all the routes described in the functions parameters
 ```javascript
@@ -67,7 +67,7 @@ const server = each(
 server()
 ```
 
-- `validateRequest(validator: (Object) => Boolean):AsyncPipeFunction`: This function return an async-pipe function that validates the context `body` property against the validator function passed as parameter. A validator function is a simple function that checks if an objects passes certains pre-conditions.
+- `validateRequest(validator: (Object) => Boolean):AsyncPipeFunction`: This function return an async-pipe function that validates the context `body` property against the validator function passed as parameter. A validator function is a simple function that checks if an objects passes certains pre-conditions. If the validation fails it will raise an `InvalidRequest` exception causing an HTTP 400 response error.
 
 A simple validator function could be just check that an object has, at least, all the properties we need.
 
@@ -88,7 +88,7 @@ const createPost = each(
 )
 ```
 
-- `validateResponse(validator: (Object) => Boolean):AsyncPipeFunction`: Same as `validateRequest` returns an async-pipe function, in this validates the whole context. Since the resulting context is what determines the endpoint handler output.
+- `validateResponse(validator: (Object) => Boolean):AsyncPipeFunction`: Same as `validateRequest` returns an async-pipe function, in this validates the whole context. Since the resulting context is what determines the endpoint handler output. If the validation fails it will raise an `InvalidResponse` exception causing an HTTP 400 response error.
 
 ```javascript
 const getPostResponseValidator = createObjectKeysValidator(['title', 'content', 'author', 'tags', 'updated', 'readCount'])
@@ -177,7 +177,7 @@ server()
 
 ## How the context works?
 
-Async-pipe functions are a functions with the following syntax:
+Async-pipe functions are functions with the following syntax:
 
 ```javascript
 type AsyncPipeFunction = (ctx: Object) => Promise(Object)
@@ -219,7 +219,39 @@ const server = each(
 )
 ```
 
-So, now you now how the context works, simply put, is an Object that gets passed down from function to function.
+The `context` is a plain object that gets passed from function to function. What `createServers` internally does is to map the route paths to aync-pipe functions but first extracting relevant data from the HTTP request adding it to the `context` and passing it to the endpoint handler. Mapping back the result as HTTP response.
 
+What's passed in the context from the HTTP Request:
+  - `body`: Parsed JSON body of the request.
+  - `headers`: As an object, please note that by default all header keys are lowercase.
+  - `params`: URI path params (if specified)
+  - `query`: URI query string as an parsed object
+  - `user`: This is a placeholder for any authentication middleware you might want to add, if none will be undefined.
 
+Of course anything added to the context in the server initialization phase will be also available to each endpoint handler. Like resources connections, DBs, etc.
+
+Once the endpoint handler finishes the resulting `context` is mapped back as HTTP response. Some especial properties have different uses and they are processed in the following order:
+  - `cookies`: This should be an object specifying cookies to be sent to the user. Notice that by default all cookies will be sent with HttpOnly and Secure flags. If any cookie key starts with an `-` it means to clear such cookie (value is not important in this case). Once processed the cookies the property is deleted from the context to continue processing
+    - ```{ cookies: { session: '122345' } }``` Set `session` cookie to `122345`
+    - ```{ cookies: { '-session': true } }``` Clear `session` cookie
+  - `redirect`: This allows to make temporal redirects in the response. If this property is present the response processing will end here and make the redirect to the specified path
+    - ```{ redirect: '/' }``` Redirect to `/`
+    - ```{ cookies: { session: '123' }, redirect: '/dashboard' }``` Sets `session` cookie, redirects to `/dashboard`
+    - ```{ cookies: { '-session': true }, redirect: '/welcome' }``` Clears `session` cookie, redirects to `/welcome`
+  - Empty payload: If context is empty (also after removing the `cookies` property) it will return a simple HTTP 204
+  - Otherwise the context is sent to the client as JSON payload.
+
+### Errors
+
+Error handling is simple too. If any endpoint handler function fails (is a promise remember) the resulting error is captured and processed according to the error message. Some words will trigger different HTTP error codes.
+  - `Expectation`: HTTP 417
+  - `NotFound`: HTTP 404, Ex: `PostNotFound` or `NotFoundPost`
+  - `Unauthorized`: HTTP 401.
+  - `Forbidden`: HTTP 403, Ex: `ForbiddenAccessToPost`
+  - `Invalid`: HTTP 400, Ex: `InvalidPostNumberFormat`
+  - If none of the previous cases applies then sadly we return an HTTP 500.
+
+## Suggestion and feedback
+
+If you use or plan to use `rvl-pipe-express` for your projects and need our help don't hesitate to file and issue here.
 
