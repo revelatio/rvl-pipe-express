@@ -42,4 +42,33 @@ server()
 
 ## Initializing external resources
 
-Most
+Most backend/express apps will need some access to external resources, like databases, caches, message queues, etc. Since the `createServer` and `startListening` functions can be used in a async-pipe function composition. Is rather easy to first connect to resources like:
+
+```javascript
+const { createServer, startListening } = require('rvl-pipe-express')
+const { connectMongoDB } = require('rvl-pipe-mongodb')
+const { each, always } = require('rvl-pipe')
+
+const statusQueryEndpoint = each(
+  runQueryOne('status_collection', always({}), 'status'),
+  prop('status')
+)
+
+const server = each(
+  connectMongoDB(process.env.MONGO_URL, process.env.MONGO_DB),
+  createServer(
+    [
+      { method: 'get', path: '/status', fn: statusQueryEndpoint }
+    ]
+  ),
+  startListening()
+)
+
+server()
+  .then(ctx => {
+    console.log('Server started with mongodb')
+  })
+```
+
+
+```
