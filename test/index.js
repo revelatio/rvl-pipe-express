@@ -1,7 +1,7 @@
 const test = require('ava')
-const { createServer, validateRequest, validateResponse } = require('../')
+const { createServer, startListening, validateRequest, validateResponse } = require('../')
 const request = require('supertest')
-const { noop, each, always, should, props, equals, prop } = require('rvl-pipe')
+const { each, always, should, props, equals, prop } = require('rvl-pipe')
 const axios = require('axios')
 
 const mockUserMiddleware = (req, res, next) => {
@@ -9,17 +9,44 @@ const mockUserMiddleware = (req, res, next) => {
   next()
 }
 
-const createMockApp = (url, endpointHandler) => [{
+const createMockApp = (url, endpointHandler, middlewares) => [{
   method: 'use',
   path: url,
   fn: endpointHandler,
-  middlewares: [mockUserMiddleware]
+  middlewares
 }]
 
-const createMockServer = (url, endpointHandler) => {
+const createMockAppWithRouters = () => [
+  {
+    path: '/api',
+    handlers: [
+      {
+        method: 'get',
+        path: '/status',
+        fn: each(always({ status: 'ok', service: 'test' }))
+      }
+    ]
+  }
+]
+
+const createMockServer = (url, endpointHandler, middlewares) => {
   return createServer(
-    noop(),
-    createMockApp(url, endpointHandler)
+    createMockApp(url, endpointHandler, middlewares)
+  )
+}
+
+const createMockServerWithRouters = () => {
+  return createServer(
+    createMockAppWithRouters()
+  )
+}
+
+const createMockServerWithInitializer = (initializer, url, endpointHandler, middlewares) => {
+  return each(
+    initializer,
+    createServer(
+      createMockApp(url, endpointHandler, middlewares)
+    )
   )
 }
 
@@ -44,11 +71,7 @@ const makeHttpRequest = (method, url) => ctx => {
     url
   })
     .then(response => Object.assign(ctx, { response }))
-    .catch(err => {
-      console.log(err)
-    })
 }
-
 
 const checkResponse = (status) => ctx => {
   ctx.t.is(ctx.response.status, status)
@@ -85,7 +108,7 @@ test('GET 200', t => {
     makeRequest('GET', '/status'),
     checkResponse(200),
     checkResponseBody({ hello: 'world' })
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('middleware is applied', t => {
@@ -95,21 +118,49 @@ test('middleware is applied', t => {
       each(
         should(equals(prop('user.id'), always(1234)), 'InvalidMiddleware'),
         always({ hello: 'world' })
+      ),
+      [mockUserMiddleware]
+    ),
+    makeRequest('GET', '/status'),
+    checkResponse(200),
+    checkResponseBody({ hello: 'world' })
+  )({ t })
+})
+
+test('initializer is applied', t => {
+  return each(
+    createMockServerWithInitializer(
+      ctx => {
+        ctx.mongo = { connection: true }
+        return ctx
+      },
+      '/status',
+      each(
+        should(prop('mongo.connection'), 'NotInitialized'),
+        always({ hello: 'world' })
       )
     ),
     makeRequest('GET', '/status'),
     checkResponse(200),
     checkResponseBody({ hello: 'world' })
-  )({ noStart: true, t })
+  )({ t })
 })
 
+test('with routers', t => {
+  return each(
+    createMockServerWithRouters(),
+    makeRequest('GET', '/api/status'),
+    checkResponse(200),
+    checkResponseBody({ status: 'ok', service: 'test' })
+  )({ t })
+})
 
 test('GET 404 (middleware)', t => {
   return each(
     createMockServer('/status', each(always({ hello: 'world' }))),
     makeRequest('GET', '/statuses'),
     checkResponse(404)
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('GET 404 (function)', t => {
@@ -118,7 +169,7 @@ test('GET 404 (function)', t => {
     makeRequest('GET', '/status'),
     checkResponse(404),
     checkResponseMessage('NotFoundResource')
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('GET 401 (function)', t => {
@@ -127,7 +178,7 @@ test('GET 401 (function)', t => {
     makeRequest('GET', '/status'),
     checkResponse(401),
     checkResponseMessage('UnauthorizedUser')
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('GET 403 (function)', t => {
@@ -136,7 +187,7 @@ test('GET 403 (function)', t => {
     makeRequest('GET', '/status'),
     checkResponse(403),
     checkResponseMessage('ForbiddenAccess')
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('GET 400 (function)', t => {
@@ -145,7 +196,7 @@ test('GET 400 (function)', t => {
     makeRequest('GET', '/status'),
     checkResponse(400),
     checkResponseMessage('InvalidRequest')
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('GET 417 (function)', t => {
@@ -154,7 +205,7 @@ test('GET 417 (function)', t => {
     makeRequest('GET', '/status'),
     checkResponse(417),
     checkResponseMessage('ExpectationNotThere')
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('GET 500 (function)', t => {
@@ -163,7 +214,7 @@ test('GET 500 (function)', t => {
     makeRequest('GET', '/status'),
     checkResponse(500),
     checkResponseMessage('JustFail')
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('payload empty 204', t => {
@@ -171,7 +222,7 @@ test('payload empty 204', t => {
     createMockServer('/status', each(always({}))),
     makeRequest('GET', '/status'),
     checkResponse(204)
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('redirects', t => {
@@ -180,7 +231,7 @@ test('redirects', t => {
     makeRequest('GET', '/status'),
     checkResponse(302),
     checkHeader('location', '/other-page')
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('set cookie', t => {
@@ -189,7 +240,7 @@ test('set cookie', t => {
     makeRequest('GET', '/status'),
     checkResponse(204),
     checkHeader('set-cookie', ['session=1234; Path=/; HttpOnly; Secure'])
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('reset cookie', t => {
@@ -198,7 +249,7 @@ test('reset cookie', t => {
     makeRequest('GET', '/status'),
     checkResponse(204),
     checkHeader('set-cookie', ['session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'])
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('input validator success', t => {
@@ -212,7 +263,7 @@ test('input validator success', t => {
     makeRequest('POST', '/status', { name: 'John' }),
     checkResponse(200),
     checkResponseBody({ hello: 'hello John' })
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('input validator failed', t => {
@@ -226,7 +277,7 @@ test('input validator failed', t => {
     makeRequest('POST', '/status', { last: 'Doe' }),
     checkResponse(400),
     checkResponseMessage('InvalidRequest')
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('output validator success', t => {
@@ -241,7 +292,7 @@ test('output validator success', t => {
     makeRequest('POST', '/status', { name: 'John' }),
     checkResponse(200),
     checkResponseBody({ hello: 'hello John' })
-  )({ noStart: true, t })
+  )({ t })
 })
 
 test('output validator failed', t => {
@@ -256,13 +307,13 @@ test('output validator failed', t => {
     makeRequest('POST', '/status', { name: 'John' }),
     checkResponse(400),
     checkResponseMessage('InvalidResponse')
-  )({ noStart: true, t })
+  )({ t })
 })
-
 
 test('server listening', t => {
   return each(
     createMockServer('/status', each(always({ hello: 'world' }))),
+    startListening(),
     makeHttpRequest('GET', 'http://localhost:3001/status'),
     checkResponse(200),
     checkHttpResponseBody({ hello: 'world' })

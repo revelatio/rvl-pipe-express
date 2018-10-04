@@ -1,7 +1,8 @@
-const { createServer, validateRequest, validateResponse } = require('./lib/helpers')
+const { createServer, startListening, validateRequest, validateResponse } = require('./lib/helpers')
 
 module.exports = {
   createServer,
+  startListening,
 
   validateRequest,
   validateResponse
