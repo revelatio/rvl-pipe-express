@@ -236,7 +236,18 @@ test('redirects', t => {
 
 test('set cookie', t => {
   return each(
-    createMockServer('/status', each(always({ cookies: { session: '1234' } }))),
+    createMockServer('/status', each(always({
+      cookies: {
+        session: {
+          value: '1234',
+          options: {
+            httpOnly: true,
+            secure: true,
+            path: '/'
+          }
+        }
+      }
+    }))),
     makeRequest('GET', '/status'),
     checkResponse(204),
     checkHeader('set-cookie', ['session=1234; Path=/; HttpOnly; Secure'])

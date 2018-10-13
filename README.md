@@ -235,13 +235,13 @@ What's passed in the context from the HTTP Request:
 Of course anything added to the context in the server initialization phase will be also available to each endpoint handler. Like resources connections, DBs, etc.
 
 Once the endpoint handler finishes the resulting `context` is mapped back as HTTP response. Some especial properties have different uses and they are processed in the following order:
-  - `cookies`: This should be an object specifying cookies to be sent to the user. Notice that by default all cookies will be sent with HttpOnly and Secure flags. If any cookie key starts with an `-` it means to clear such cookie (value is not important in this case). Once processed the cookies the property is deleted from the context to continue processing
-    - ```{ cookies: { session: '122345' } }``` Set `session` cookie to `122345`
-    - ```{ cookies: { '-session': true } }``` Clear `session` cookie
+  - `cookies`: This should be an object specifying cookies to be sent to the user. You can define cookie values and options, like Path, HttpOnly and Secure flags. If any cookie key starts with an `-` it means to clear such cookie (value is used as options to the clear cookie method). Once processed the cookies the property is deleted from the context to continue processing
+    - ```{ cookies: { session: { value: '122345', options: { httpOnly: true, path: '/' } } }``` Set `session` cookie to `122345` with httpOnly flag an `/` Path.
+    - ```{ cookies: { '-session': { path: '/' } } }``` Clear `session` cookie
   - `redirect`: This allows to make temporal redirects in the response. If this property is present the response processing will end here and make the redirect to the specified path
     - ```{ redirect: '/' }``` Redirect to `/`
-    - ```{ cookies: { session: '123' }, redirect: '/dashboard' }``` Sets `session` cookie, redirects to `/dashboard`
-    - ```{ cookies: { '-session': true }, redirect: '/welcome' }``` Clears `session` cookie, redirects to `/welcome`
+    - ```{ cookies: { session: { value: '123', options: { httpOnly: true, path: '/' } }, redirect: '/dashboard' }``` Sets `session` cookie, redirects to `/dashboard`
+    - ```{ cookies: { '-session': { path: '/' } }, redirect: '/welcome' }``` Clears `session` cookie, redirects to `/welcome`
   - Empty payload: If context is empty (also after removing the `cookies` property) it will return a simple HTTP 204
   - Otherwise the context is sent to the client as JSON payload.
 
