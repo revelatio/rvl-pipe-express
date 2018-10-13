@@ -25,6 +25,7 @@ type Endpoint = {
 
 type Route = {
   path: String,
+  middlewares?: [Middleware]
   handlers: [Endpoint | Route]
 }
 
