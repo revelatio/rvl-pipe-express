@@ -259,7 +259,12 @@ test('reset cookie', t => {
     createMockServer('/status', each(always({ cookies: { '-session': true } }))),
     makeRequest('GET', '/status'),
     checkResponse(204),
+    checkHeader('set-cookie', ['session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT']),
+
+    makeRequest('GET', '/status'),
+    checkResponse(204),
     checkHeader('set-cookie', ['session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'])
+
   )({ t })
 })
 
