@@ -1,6 +1,6 @@
 {
   "name": "rvl-pipe-express",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -13,21 +13,21 @@
   "license": "MIT",
   "repository": "https://github.com/revelatio/rvl-pipe-express",
   "dependencies": {
-    "body-parser": "^1.18.3",
-    "cookie-parser": "^1.4.3",
-    "express": "^4.16.3",
-    "ramda": "^0.25.0"
+    "body-parser": "^1.19.0",
+    "cookie-parser": "^1.4.4",
+    "express": "^4.17.1",
+    "ramda": "^0.26.1"
   },
   "peerDependencies": {
     "rvl-pipe": "latest"
   },
   "devDependencies": {
-    "ava": "^0.25.0",
-    "axios": "^0.18.0",
-    "coveralls": "^3.0.2",
-    "nyc": "^13.0.1",
+    "ava": "^2.4.0",
+    "axios": "^0.19.0",
+    "coveralls": "^3.0.7",
+    "nyc": "^14.1.1",
     "rvl-pipe": "latest",
-    "standard": "^10.0.3",
-    "supertest": "^3.3.0"
+    "standard": "^14.3.1",
+    "supertest": "^4.0.2"
   }
 }
