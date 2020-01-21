@@ -1,7 +1,7 @@
 import express from 'express'
 import cookieParser from 'cookie-parser'
 import bodyParser from 'body-parser'
-import { isEmpty, omit } from 'ramda'
+import { isEmpty, omit, forEachObjIndexed } from 'ramda'
 import {
   Context,
   AsyncFunction,
@@ -33,10 +33,37 @@ export const stopListening = (): AsyncFunction => (ctx: Context) => {
   return Promise.resolve(ctx)
 }
 
-const createHandler = (handlers: any[]): AsyncFunction => (ctx: Context) => {
-  const addHandlers = (router: any, handlers: any[]) => {
-    handlers.forEach((handler: any) => {
-      if ('handlers' in handler) {
+export interface RequestInput {
+  body?: any
+  headers: any
+  params?: any
+  user?: any
+  query?: any
+  req: any
+  res: any
+}
+export interface CookieSetter {
+  value: string
+  options: { [key: string]: string }
+}
+export interface RequestOutput {
+  cookies?: { [key: string]: CookieSetter | null }
+  redirect?: string
+}
+export interface Handler {
+  handlers?: Handler[]
+  path: string
+  middlewares: any[]
+  method: 'get' | 'post' | 'patch' | 'put' | 'delete'
+  fn: (inputContext: RequestInput) => Promise<RequestOutput>
+}
+
+const createHandler = (handlers: Handler[]): AsyncFunction => (
+  ctx: Context
+) => {
+  const addHandlers = (router: any, handlers: Handler[]) => {
+    handlers.forEach((handler: Handler) => {
+      if (handler.handlers) {
         const pathRouter = ctx.express.Router()
         addHandlers(pathRouter, handler.handlers)
         router.use(
@@ -60,25 +87,21 @@ const createHandler = (handlers: any[]): AsyncFunction => (ctx: Context) => {
 export const createServer = (handlers: any[]) =>
   each(createApp(), createHandler(handlers))
 
-const sendResponse = (__: any, res: any) => (rawPayload: Context) => {
+const sendResponse = (__: any, res: any) => (rawPayload: RequestOutput) => {
   if (!rawPayload) {
     return res.status(204).end()
   }
 
   let payload = rawPayload
 
-  if ('cookies' in payload) {
-    Object.keys(payload.cookies).forEach(cookieName => {
+  if (payload.cookies) {
+    forEachObjIndexed((cookieValue, cookieName) => {
       if (cookieName[0] === '-') {
-        res.clearCookie(cookieName.substring(1), payload.cookies[cookieName])
-      } else {
-        res.cookie(
-          cookieName,
-          payload.cookies[cookieName].value,
-          payload.cookies[cookieName].options
-        )
+        res.clearCookie(cookieName.toString().substring(1), cookieValue)
+      } else if (cookieValue) {
+        res.cookie(cookieName, cookieValue.value, cookieValue.options)
       }
-    })
+    }, payload.cookies)
 
     payload = omit(['cookies'], rawPayload)
   }
@@ -138,17 +161,16 @@ const sendErrorResponse = (__: any, res: any) => (err: ContextError) => {
 }
 
 const wrap = (fn: AsyncFunction) => (req: any, res: any) => {
-  return fn(
-    Object.assign({}, res.ctx, {
-      body: req.body,
-      headers: req.headers,
-      params: req.params,
-      user: req.user,
-      query: req.query,
-      req,
-      res
-    })
-  )
+  return fn({
+    ...res.ctx,
+    body: req.body,
+    headers: req.headers,
+    params: req.params,
+    user: req.user,
+    query: req.query,
+    req,
+    res
+  })
     .then(sendResponse(req, res))
     .catch(err => sendErrorResponse(req, res)(err))
 }
