@@ -1,33 +1,76 @@
 {
   "name": "rvl-pipe-express",
-  "version": "0.5.0",
+  "version": "2.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "build/index.js",
+  "module": "build/index.es.js",
+  "jsnext:main": "build/index.es.js",
   "scripts": {
+    "build": "rollup -c",
     "lint": "standard",
-    "test": "nyc ava --verbose",
+    "format": "prettier-standard --format",
+    "test": "jest --coverage",
     "report": "nyc report --reporter=html"
   },
+  "files": [
+    "build"
+  ],
   "keywords": [],
   "author": "Ernesto Freyre",
   "license": "MIT",
   "repository": "https://github.com/revelatio/rvl-pipe-express",
   "dependencies": {
-    "body-parser": "^1.19.0",
-    "cookie-parser": "^1.4.4",
-    "express": "^4.17.1",
     "ramda": "^0.26.1"
   },
   "peerDependencies": {
-    "rvl-pipe": "latest"
+    "body-parser": "^1.19.0",
+    "cookie-parser": "^1.4.4",
+    "express": "^4.17.1",
+    "rvl-pipe": "^2.0.0"
   },
   "devDependencies": {
-    "ava": "^2.4.0",
+    "@types/axios": "^0.14.0",
+    "@types/cookie-parser": "^1.4.2",
+    "@types/express": "^4.17.2",
+    "@types/jest": "^24.9.0",
+    "@types/node": "^13.1.8",
+    "@types/ramda": "^0.26.39",
+    "@types/supertest": "^2.0.8",
     "axios": "^0.19.0",
+    "body-parser": "^1.19.0",
+    "cookie-parser": "^1.4.4",
     "coveralls": "^3.0.7",
+    "express": "^4.17.1",
+    "jest": "^24.9.0",
     "nyc": "^14.1.1",
+    "prettier-standard": "^16.1.0",
+    "rollup": "^1.29.0",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-json": "^4.0.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-peer-deps-external": "^2.2.0",
+    "rollup-plugin-typescript2": "^0.25.3",
     "rvl-pipe": "latest",
     "standard": "^14.3.1",
-    "supertest": "^4.0.2"
+    "supertest": "^4.0.2",
+    "ts-jest": "^24.3.0",
+    "typescript": "^3.7.5"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.spec.ts"
+    ]
+  },
+  "standard": {
+    "ignore": [
+      "node_modules/",
+      "build/"
+    ],
+    "globals": [
+      "test",
+      "expect"
+    ]
   }
 }
