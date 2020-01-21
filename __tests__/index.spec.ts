@@ -1,20 +1,41 @@
-const test = require('ava')
-const { createServer, startListening, validateRequest, validateResponse } = require('../')
-const request = require('supertest')
-const { each, always, should, props, equals, prop } = require('rvl-pipe')
-const axios = require('axios')
+import {
+  createServer,
+  startListening,
+  stopListening,
+  validateRequest,
+  validateResponse
+} from '../src'
+import request from 'supertest'
+import {
+  each,
+  always,
+  should,
+  props,
+  equals,
+  prop,
+  AsyncFunction,
+  Context
+} from 'rvl-pipe'
+import axios from 'axios'
+import { SyncPredicate } from 'rvl-pipe/build'
 
-const mockUserMiddleware = (req, res, next) => {
+const mockUserMiddleware = (req: any, __: any, next: any) => {
   req.user = { id: 1234 }
   next()
 }
 
-const createMockApp = (url, endpointHandler, middlewares) => [{
-  method: 'use',
-  path: url,
-  fn: endpointHandler,
-  middlewares
-}]
+const createMockApp = (
+  url: string,
+  endpointHandler: AsyncFunction,
+  middlewares?: any[]
+) => [
+  {
+    method: 'use',
+    path: url,
+    fn: endpointHandler,
+    middlewares
+  }
+]
 
 const createMockAppWithRouters = () => [
   {
@@ -29,32 +50,43 @@ const createMockAppWithRouters = () => [
   }
 ]
 
-const createMockServer = (url, endpointHandler, middlewares) => {
-  return createServer(
-    createMockApp(url, endpointHandler, middlewares)
-  )
+const createMockServer = (
+  url: string,
+  endpointHandler: AsyncFunction,
+  middlewares?: any[]
+) => {
+  return createServer(createMockApp(url, endpointHandler, middlewares))
 }
 
 const createMockServerWithRouters = () => {
-  return createServer(
-    createMockAppWithRouters()
-  )
+  return createServer(createMockAppWithRouters())
 }
 
-const createMockServerWithInitializer = (initializer, url, endpointHandler, middlewares) => {
+const createMockServerWithInitializer = (
+  initializer: AsyncFunction,
+  url: string,
+  endpointHandler: AsyncFunction,
+  middlewares?: any[]
+) => {
   return each(
     initializer,
-    createServer(
-      createMockApp(url, endpointHandler, middlewares)
-    )
+    createServer(createMockApp(url, endpointHandler, middlewares))
   )
 }
 
-const makeRequest = (method, url, payload) => ctx => {
+const makeRequest = (
+  method: 'GET' | 'POST',
+  url: string,
+  payload?: Context
+) => (ctx: Context) => {
   if (method === 'GET') {
     return request(ctx.app)
       .get(url)
-      .then(response => Object.assign(ctx, { response }))
+      .then(response =>
+        Object.assign(ctx, {
+          response
+        })
+      )
   }
 
   if (method === 'POST') {
@@ -63,55 +95,71 @@ const makeRequest = (method, url, payload) => ctx => {
       .send(payload)
       .then(response => Object.assign(ctx, { response }))
   }
+
+  return Promise.resolve(ctx)
 }
 
-const makeHttpRequest = (method, url) => ctx => {
-  return axios({
-    method,
-    url
-  })
-    .then(response => Object.assign(ctx, { response }))
+const makeHttpRequest = (url: string): AsyncFunction => (ctx: Context) => {
+  return axios.get(url).then(response => Object.assign(ctx, { response }))
 }
 
-const checkResponse = (status) => ctx => {
-  ctx.t.is(ctx.response.status, status)
-  return ctx
+const checkResponse = (status: number): AsyncFunction => (ctx: Context) => {
+  expect(ctx.response.status).toBe(status)
+  return Promise.resolve(ctx)
 }
 
-const checkResponseBody = (body) => ctx => {
-  ctx.t.deepEqual(ctx.response.body, body)
-  return ctx
+const checkResponseBody = (body: Context): AsyncFunction => (ctx: Context) => {
+  expect(ctx.response.body).toEqual(body)
+  return Promise.resolve(ctx)
 }
 
-const checkHttpResponseBody = (body) => ctx => {
-  ctx.t.deepEqual(ctx.response.data, body)
-  return ctx
+const checkHttpResponseBody = (body: Context): AsyncFunction => (
+  ctx: Context
+) => {
+  expect(ctx.response.data).toEqual(body)
+  return Promise.resolve(ctx)
 }
 
-const checkResponseMessage = (message) => ctx => {
-  ctx.t.is(ctx.response.text, message)
-  return ctx
+const checkResponseMessage = (message: string): AsyncFunction => (
+  ctx: Context
+) => {
+  expect(ctx.response.text).toBe(message)
+  return Promise.resolve(ctx)
 }
 
-const checkHeader = (header, value) => ctx => {
-  ctx.t.deepEqual(ctx.response.headers[header], value)
-  return ctx
+const checkHeader = (
+  header: string,
+  value: string | string[]
+): AsyncFunction => (ctx: Context) => {
+  expect(ctx.response.headers[header]).toEqual(value)
+  return Promise.resolve(ctx)
 }
 
-const createObjectKeysValidator = (keys) => obj => {
+const createObjectKeysValidator = (keys: string[]): SyncPredicate => (
+  obj: Context
+): boolean => {
   return keys.every(key => key in obj)
 }
 
-test('GET 200', t => {
+test('GET 200', () => {
   return each(
     createMockServer('/status', each(always({ hello: 'world' }))),
     makeRequest('GET', '/status'),
     checkResponse(200),
     checkResponseBody({ hello: 'world' })
-  )({ t })
+  )()
 })
 
-test('middleware is applied', t => {
+test('GET 204', () => {
+  return each(
+    createMockServer('/status', each(always(null))),
+    makeRequest('GET', '/status'),
+    checkResponse(204)
+    // checkResponseBody({ hello: 'world' })
+  )()
+})
+
+test('middleware is applied', () => {
   return each(
     createMockServer(
       '/status',
@@ -124,15 +172,15 @@ test('middleware is applied', t => {
     makeRequest('GET', '/status'),
     checkResponse(200),
     checkResponseBody({ hello: 'world' })
-  )({ t })
+  )()
 })
 
-test('initializer is applied', t => {
+test('initializer is applied', () => {
   return each(
     createMockServerWithInitializer(
-      ctx => {
+      (ctx: Context) => {
         ctx.mongo = { connection: true }
-        return ctx
+        return Promise.resolve(ctx)
       },
       '/status',
       each(
@@ -143,135 +191,155 @@ test('initializer is applied', t => {
     makeRequest('GET', '/status'),
     checkResponse(200),
     checkResponseBody({ hello: 'world' })
-  )({ t })
+  )()
 })
 
-test('with routers', t => {
+test('with routers', () => {
   return each(
     createMockServerWithRouters(),
     makeRequest('GET', '/api/status'),
     checkResponse(200),
     checkResponseBody({ status: 'ok', service: 'test' })
-  )({ t })
+  )()
 })
 
-test('GET 404 (middleware)', t => {
+test('GET 404 (middleware)', () => {
   return each(
     createMockServer('/status', each(always({ hello: 'world' }))),
     makeRequest('GET', '/statuses'),
     checkResponse(404)
-  )({ t })
+  )()
 })
 
-test('GET 404 (function)', t => {
+test('GET 404 (function)', () => {
   return each(
-    createMockServer('/status', each(should(always(false), 'NotFoundResource'))),
+    createMockServer(
+      '/status',
+      each(should(always(false), 'NotFoundResource'))
+    ),
     makeRequest('GET', '/status'),
     checkResponse(404),
     checkResponseMessage('NotFoundResource')
-  )({ t })
+  )()
 })
 
-test('GET 401 (function)', t => {
+test('GET 401 (function)', () => {
   return each(
-    createMockServer('/status', each(should(always(false), 'UnauthorizedUser'))),
+    createMockServer(
+      '/status',
+      each(should(always(false), 'UnauthorizedUser'))
+    ),
     makeRequest('GET', '/status'),
     checkResponse(401),
     checkResponseMessage('UnauthorizedUser')
-  )({ t })
+  )()
 })
 
-test('GET 403 (function)', t => {
+test('GET 403 (function)', () => {
   return each(
     createMockServer('/status', each(should(always(false), 'ForbiddenAccess'))),
     makeRequest('GET', '/status'),
     checkResponse(403),
     checkResponseMessage('ForbiddenAccess')
-  )({ t })
+  )()
 })
 
-test('GET 400 (function)', t => {
+test('GET 400 (function)', () => {
   return each(
     createMockServer('/status', each(should(always(false), 'InvalidRequest'))),
     makeRequest('GET', '/status'),
     checkResponse(400),
     checkResponseMessage('InvalidRequest')
-  )({ t })
+  )()
 })
 
-test('GET 417 (function)', t => {
+test('GET 417 (function)', () => {
   return each(
-    createMockServer('/status', each(should(always(false), 'ExpectationNotThere'))),
+    createMockServer(
+      '/status',
+      each(should(always(false), 'ExpectationNotThere'))
+    ),
     makeRequest('GET', '/status'),
     checkResponse(417),
     checkResponseMessage('ExpectationNotThere')
-  )({ t })
+  )()
 })
 
-test('GET 500 (function)', t => {
+test('GET 500 (function)', () => {
   return each(
     createMockServer('/status', each(should(always(false), 'JustFail'))),
     makeRequest('GET', '/status'),
     checkResponse(500),
     checkResponseMessage('JustFail')
-  )({ t })
+  )()
 })
 
-test('payload empty 204', t => {
+test('payload empty 204', () => {
   return each(
     createMockServer('/status', each(always({}))),
     makeRequest('GET', '/status'),
     checkResponse(204)
-  )({ t })
+  )()
 })
 
-test('redirects', t => {
+test('redirects', () => {
   return each(
     createMockServer('/status', each(always({ redirect: '/other-page' }))),
     makeRequest('GET', '/status'),
     checkResponse(302),
     checkHeader('location', '/other-page')
-  )({ t })
+  )()
 })
 
-test('set cookie', t => {
+test('set cookie', () => {
   return each(
-    createMockServer('/status', each(always({
-      cookies: {
-        session: {
-          value: '1234',
-          options: {
-            httpOnly: true,
-            secure: true,
-            path: '/'
+    createMockServer(
+      '/status',
+      each(
+        always({
+          cookies: {
+            session: {
+              value: '1234',
+              options: {
+                httpOnly: true,
+                secure: true,
+                path: '/'
+              }
+            }
           }
-        }
-      }
-    }))),
+        })
+      )
+    ),
     makeRequest('GET', '/status'),
     checkResponse(204),
     checkHeader('set-cookie', ['session=1234; Path=/; HttpOnly; Secure'])
-  )({ t })
+  )()
 })
 
-test('reset cookie', t => {
+test('reset cookie', () => {
   return each(
-    createMockServer('/status', each(always({ cookies: { '-session': true } }))),
+    createMockServer(
+      '/status',
+      each(always({ cookies: { '-session': true } }))
+    ),
     makeRequest('GET', '/status'),
     checkResponse(204),
-    checkHeader('set-cookie', ['session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT']),
+    checkHeader('set-cookie', [
+      'session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    ]),
 
     makeRequest('GET', '/status'),
     checkResponse(204),
-    checkHeader('set-cookie', ['session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'])
-
-  )({ t })
+    checkHeader('set-cookie', [
+      'session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    ])
+  )()
 })
 
-test('input validator success', t => {
+test('input validator success', () => {
   const endpointHandler = each(
     validateRequest(createObjectKeysValidator(['name'])),
-    props({ hello: ctx => `hello ${ctx.body.name}` })
+    props({ hello: (ctx: Context) => `hello ${ctx.body.name}` })
   )
 
   return each(
@@ -279,13 +347,13 @@ test('input validator success', t => {
     makeRequest('POST', '/status', { name: 'John' }),
     checkResponse(200),
     checkResponseBody({ hello: 'hello John' })
-  )({ t })
+  )()
 })
 
-test('input validator failed', t => {
+test('input validator failed', () => {
   const endpointHandler = each(
     validateRequest(createObjectKeysValidator(['name'])),
-    props({ hello: ctx => `hello ${ctx.body.name}` })
+    props({ hello: (ctx: Context) => `hello ${ctx.body.name}` })
   )
 
   return each(
@@ -293,13 +361,13 @@ test('input validator failed', t => {
     makeRequest('POST', '/status', { last: 'Doe' }),
     checkResponse(400),
     checkResponseMessage('InvalidRequest')
-  )({ t })
+  )()
 })
 
-test('output validator success', t => {
+test('output validator success', () => {
   const endpointHandler = each(
     validateRequest(createObjectKeysValidator(['name'])),
-    props({ hello: ctx => `hello ${ctx.body.name}` }),
+    props({ hello: (ctx: Context) => `hello ${ctx.body.name}` }),
     validateResponse(createObjectKeysValidator(['hello']))
   )
 
@@ -308,13 +376,13 @@ test('output validator success', t => {
     makeRequest('POST', '/status', { name: 'John' }),
     checkResponse(200),
     checkResponseBody({ hello: 'hello John' })
-  )({ t })
+  )()
 })
 
-test('output validator failed', t => {
+test('output validator failed', () => {
   const endpointHandler = each(
     validateRequest(createObjectKeysValidator(['name'])),
-    props({ gretting: ctx => `hello ${ctx.body.name}` }),
+    props({ gretting: (ctx: Context) => `hello ${ctx.body.name}` }),
     validateResponse(createObjectKeysValidator(['hello']))
   )
 
@@ -323,15 +391,16 @@ test('output validator failed', t => {
     makeRequest('POST', '/status', { name: 'John' }),
     checkResponse(400),
     checkResponseMessage('InvalidResponse')
-  )({ t })
+  )()
 })
 
-test('server listening', t => {
+test('server listening', () => {
   return each(
     createMockServer('/status', each(always({ hello: 'world' }))),
     startListening(),
-    makeHttpRequest('GET', 'http://localhost:3000/status'),
+    makeHttpRequest('http://localhost:3000/status'),
     checkResponse(200),
-    checkHttpResponseBody({ hello: 'world' })
-  )({ t })
+    checkHttpResponseBody({ hello: 'world' }),
+    stopListening()
+  )()
 })
