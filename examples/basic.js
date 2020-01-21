@@ -1,4 +1,4 @@
-const { createServer, startListening } = require('./index')
+const { createServer, startListening } = require('../build/index')
 const { each, always } = require('rvl-pipe')
 
 const statusEndpoint = each(
