@@ -10,6 +10,11 @@ Abstracts some quirks of building a express server by only providing a set of pa
 
 Also includes a couple of very simple validation functions for verifying requests and responses.
 
+## Version 2.0.0 the one with Typings (in TypeScript)
+
+This version is the first completely ported to TypeScript so
+the build process exports the type definitions. 
+
 ## API
 
 API is comprised of only 4 functions. 2 for creating and starting a server and 2 helper function for validating request and response.

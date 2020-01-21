@@ -468,6 +468,39 @@ var empty = /*#__PURE__*/_curry1(function empty(x) {
 });
 
 /**
+ * Iterate over an input `object`, calling a provided function `fn` for each
+ * key and value in the object.
+ *
+ * `fn` receives three argument: *(value, key, obj)*.
+ *
+ * @func
+ * @memberOf R
+ * @since v0.23.0
+ * @category Object
+ * @sig ((a, String, StrMap a) -> Any) -> StrMap a -> StrMap a
+ * @param {Function} fn The function to invoke. Receives three argument, `value`, `key`, `obj`.
+ * @param {Object} obj The object to iterate over.
+ * @return {Object} The original object.
+ * @example
+ *
+ *      const printKeyConcatValue = (value, key) => console.log(key + ':' + value);
+ *      R.forEachObjIndexed(printKeyConcatValue, {x: 1, y: 2}); //=> {x: 1, y: 2}
+ *      // logs x:1
+ *      // logs y:2
+ * @symb R.forEachObjIndexed(f, {x: a, y: b}) = {x: a, y: b}
+ */
+var forEachObjIndexed = /*#__PURE__*/_curry2(function forEachObjIndexed(fn, obj) {
+  var keyList = keys(obj);
+  var idx = 0;
+  while (idx < keyList.length) {
+    var key = keyList[idx];
+    fn(obj[key], key, obj);
+    idx += 1;
+  }
+  return obj;
+});
+
+/**
  * Returns `true` if the given value is its type's empty value; `false`
  * otherwise.
  *
@@ -549,7 +582,7 @@ var stopListening = function () { return function (ctx) {
 var createHandler = function (handlers) { return function (ctx) {
     var addHandlers = function (router, handlers) {
         handlers.forEach(function (handler) {
-            if ('handlers' in handler) {
+            if (handler.handlers) {
                 var pathRouter = ctx.express.Router();
                 addHandlers(pathRouter, handler.handlers);
                 router.use.apply(router, __spreadArrays([handler.path], __spreadArrays((handler.middlewares || []), [pathRouter])));
@@ -570,15 +603,15 @@ var sendResponse = function (__, res) { return function (rawPayload) {
         return res.status(204).end();
     }
     var payload = rawPayload;
-    if ('cookies' in payload) {
-        Object.keys(payload.cookies).forEach(function (cookieName) {
+    if (payload.cookies) {
+        forEachObjIndexed(function (cookieValue, cookieName) {
             if (cookieName[0] === '-') {
-                res.clearCookie(cookieName.substring(1), payload.cookies[cookieName]);
+                res.clearCookie(cookieName.toString().substring(1), cookieValue);
             }
-            else {
-                res.cookie(cookieName, payload.cookies[cookieName].value, payload.cookies[cookieName].options);
+            else if (cookieValue) {
+                res.cookie(cookieName, cookieValue.value, cookieValue.options);
             }
-        });
+        }, payload.cookies);
         payload = omit(['cookies'], rawPayload);
     }
     if (isEmpty(payload)) {
@@ -627,15 +660,8 @@ var sendErrorResponse = function (__, res) { return function (err) {
         .end();
 }; };
 var wrap = function (fn) { return function (req, res) {
-    return fn(Object.assign({}, res.ctx, {
-        body: req.body,
-        headers: req.headers,
-        params: req.params,
-        user: req.user,
-        query: req.query,
-        req: req,
-        res: res
-    }))
+    return fn(__assign(__assign({}, res.ctx), { body: req.body, headers: req.headers, params: req.params, user: req.user, query: req.query, req: req,
+        res: res }))
         .then(sendResponse(req, res))
         .catch(function (err) { return sendErrorResponse(req, res)(err); });
 }; };
