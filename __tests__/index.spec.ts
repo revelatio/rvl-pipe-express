@@ -1,5 +1,5 @@
 import {
-  createServer,
+  createServer, Handler,
   startListening,
   stopListening,
   validateRequest,
@@ -28,27 +28,29 @@ const createMockApp = (
   url: string,
   endpointHandler: AsyncFunction,
   middlewares?: any[]
-) => [
+): Array<Handler> => [
   {
     method: 'use',
     path: url,
     fn: endpointHandler,
-    middlewares
+    middlewares: middlewares
   }
 ]
 
-const createMockAppWithRouters = () => [
-  {
-    path: '/api',
-    handlers: [
-      {
-        method: 'get',
-        path: '/status',
-        fn: each(always({ status: 'ok', service: 'test' }))
-      }
-    ]
+const createMockAppWithRouters = (): Array<Handler> => {
+  const inner: Handler = {
+    method: 'get',
+    path: '/status',
+    fn: each(always({ status: 'ok', service: 'test' }))
   }
-]
+
+  return [
+    {
+      path: '/api',
+      handlers: [inner]
+    }
+  ]
+}
 
 const createMockServer = (
   url: string,

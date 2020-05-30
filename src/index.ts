@@ -1,4 +1,4 @@
-import express from 'express'
+import express, {Router} from 'express'
 import cookieParser from 'cookie-parser'
 import bodyParser from 'body-parser'
 import { isEmpty, omit, forEachObjIndexed } from 'ramda'
@@ -53,15 +53,15 @@ export interface RequestOutput {
 export interface Handler {
   handlers?: Handler[]
   path: string
-  middlewares: any[]
-  method: 'get' | 'post' | 'patch' | 'put' | 'delete'
-  fn: (inputContext: RequestInput) => Promise<RequestOutput>
+  middlewares?: any[]
+  method?: 'get' | 'post' | 'patch' | 'put' | 'delete' | 'use'
+  fn?: (inputContext: RequestInput) => Promise<RequestOutput>
 }
 
 const createHandler = (handlers: Handler[]): AsyncFunction => (
   ctx: Context
 ) => {
-  const addHandlers = (router: any, handlers: Handler[]) => {
+  const addHandlers = (router: Router, handlers: Handler[]) => {
     handlers.forEach((handler: Handler) => {
       if (handler.handlers) {
         const pathRouter = ctx.express.Router()
@@ -70,7 +70,7 @@ const createHandler = (handlers: Handler[]): AsyncFunction => (
           handler.path,
           ...[...(handler.middlewares || []), pathRouter]
         )
-      } else {
+      } else if (handler.method && handler.fn) {
         router[handler.method](
           handler.path,
           ...[...(handler.middlewares || []), wrap(handler.fn)]
@@ -84,7 +84,7 @@ const createHandler = (handlers: Handler[]): AsyncFunction => (
   return Promise.resolve(ctx)
 }
 
-export const createServer = (handlers: any[]) =>
+export const createServer = (handlers: Array<Handler>) =>
   each(createApp(), createHandler(handlers))
 
 const sendResponse = (__: any, res: any) => (rawPayload: RequestOutput) => {
