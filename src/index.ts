@@ -70,8 +70,8 @@ const createHandler = (handlers: Handler[]): AsyncFunction => (
         router.use(
           handler.path,
           ...[
-            ...(handler.middlewares || []),
             ...(handler.ctxMiddlewares || []).map(f => f(ctx)),
+            ...(handler.middlewares || []),
             pathRouter
           ]
         )
@@ -79,8 +79,8 @@ const createHandler = (handlers: Handler[]): AsyncFunction => (
         router[handler.method](
           handler.path,
           ...[
-            ...(handler.middlewares || []),
             ...(handler.ctxMiddlewares || []).map(f => f(ctx)),
+            ...(handler.middlewares || []),
             wrap(handler.fn)
           ]
         )

@@ -579,12 +579,12 @@ var createHandler = function (handlers) { return function (ctx) {
             if (handler.handlers) {
                 var pathRouter = ctx.express.Router();
                 addHandlers(pathRouter, handler.handlers);
-                router.use.apply(router, __spreadArrays([handler.path], __spreadArrays((handler.middlewares || []), (handler.ctxMiddlewares || []).map(function (f) { return f(ctx); }), [
+                router.use.apply(router, __spreadArrays([handler.path], __spreadArrays((handler.ctxMiddlewares || []).map(function (f) { return f(ctx); }), (handler.middlewares || []), [
                     pathRouter
                 ])));
             }
             else if (handler.method && handler.fn) {
-                router[handler.method].apply(router, __spreadArrays([handler.path], __spreadArrays((handler.middlewares || []), (handler.ctxMiddlewares || []).map(function (f) { return f(ctx); }), [
+                router[handler.method].apply(router, __spreadArrays([handler.path], __spreadArrays((handler.ctxMiddlewares || []).map(function (f) { return f(ctx); }), (handler.middlewares || []), [
                     wrap(handler.fn)
                 ])));
             }
