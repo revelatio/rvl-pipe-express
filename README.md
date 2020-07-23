@@ -13,13 +13,14 @@ Also includes a couple of very simple validation functions for verifying request
 ## Version 2.0.0 the one with Typings (in TypeScript)
 
 This version is the first completely ported to TypeScript so
-the build process exports the type definitions. 
+the build process exports the type definitions.
 
 ## API
 
 API is comprised of only 4 functions. 2 for creating and starting a server and 2 helper function for validating request and response.
 
 - `createServer(routes: [Endpoint | Route]): AsyncPipeFunction`: Creates an async-pipe function that adds a pair of context properties: `app` and `express` (for extensibility). `app` will be initialized with all the routes described in the functions parameters
+
 ```javascript
 type Endpoint = {
   method: 'get' | 'post' | 'patch' | 'delete',
@@ -82,11 +83,16 @@ server()
 A simple validator function could be just check that an object has, at least, all the properties we need.
 
 ```javascript
-const createObjectKeysValidator = (keys) => obj => {
+const createObjectKeysValidator = keys => obj => {
   return keys.every(key => key in obj)
 }
 
-const createPostRequestValidator = createObjectKeysValidator(['title', 'content', 'author', 'tags'])
+const createPostRequestValidator = createObjectKeysValidator([
+  'title',
+  'content',
+  'author',
+  'tags'
+])
 
 const createPost = each(
   validateRequest(createPostRequestValidator),
@@ -101,10 +107,16 @@ const createPost = each(
 - `validateResponse(validator: (Object) => Boolean):AsyncPipeFunction`: Same as `validateRequest` returns an async-pipe function, in this validates the whole context. Since the resulting context is what determines the endpoint handler output. If the validation fails it will raise an `InvalidResponse` exception causing an HTTP 400 response error.
 
 ```javascript
-const getPostResponseValidator = createObjectKeysValidator(['title', 'content', 'author', 'tags', 'updated', 'readCount'])
+const getPostResponseValidator = createObjectKeysValidator([
+  'title',
+  'content',
+  'author',
+  'tags',
+  'updated',
+  'readCount'
+])
 
 const getPost = each(
-
   // Retrieve post here...
 
   prop('post'),
@@ -128,18 +140,13 @@ const statusEndpoint = each(
 )
 
 const server = each(
-  createServer(
-    [
-      { method: 'get', path: '/status', fn: statusEndpoint }
-    ]
-  ),
+  createServer([{ method: 'get', path: '/status', fn: statusEndpoint }]),
   startListening()
 )
 
-server()
-  .then(ctx => {
-    console.log('Server started')
-  })
+server().then(ctx => {
+  console.log('Server started')
+})
 ```
 
 ## Initializing external resources
@@ -154,35 +161,34 @@ const { connectMongoDB, runQueryOne } = require('rvl-pipe-mongodb')
 const { each, always, prop } = require('rvl-pipe')
 
 const statusQueryEndpoint = each(
-  runQueryOne(              // Uses mongodb connection on the context
-    'status_collection',    // Runs a mongodb query on status_collection
-    always({}),             // No filter
-    'status'                // stores on status prop
+  runQueryOne(
+    // Uses mongodb connection on the context
+    'status_collection', // Runs a mongodb query on status_collection
+    always({}), // No filter
+    'status' // stores on status prop
   ),
   prop('status')
 )
 
 const server = each(
-  connectMongoDB(           // Adds a mongodb connection to the context
+  connectMongoDB(
+    // Adds a mongodb connection to the context
     process.env.MONGO_URL,
     process.env.MONGO_DB
   ),
-  createServer(
-    [
-      {
-        method: 'get',            // This function will receive access to the context
-        path: '/status',          // where mongodb is connected
-        fn: statusQueryEndpoint
-      }
-    ]
-  ),
+  createServer([
+    {
+      method: 'get', // This function will receive access to the context
+      path: '/status', // where mongodb is connected
+      fn: statusQueryEndpoint
+    }
+  ]),
   startListening()
 )
 
-server()
-  .then(ctx => {
-    console.log('Server started with mongodb')
-  })
+server().then(ctx => {
+  console.log('Server started with mongodb')
+})
 ```
 
 ## How the context works?
@@ -232,36 +238,38 @@ const server = each(
 The `context` is a plain object that gets passed from function to function. What `createServers` internally does is to map the route paths to aync-pipe functions but first extracting relevant data from the HTTP request adding it to the `context` and passing it to the endpoint handler. Mapping back the result as HTTP response.
 
 What's passed in the context from the HTTP Request:
-  - `body`: Parsed JSON body of the request.
-  - `headers`: As an object, please note that by default all header keys are lowercase.
-  - `params`: URI path params (if specified)
-  - `query`: URI query string as an parsed object
-  - `user`: This is a placeholder for any authentication middleware you might want to add, if none will be undefined.
+
+- `body`: Parsed JSON body of the request.
+- `headers`: As an object, please note that by default all header keys are lowercase.
+- `params`: URI path params (if specified)
+- `query`: URI query string as an parsed object
+- `user`: This is a placeholder for any authentication middleware you might want to add, if none will be undefined.
 
 Of course anything added to the context in the server initialization phase will be also available to each endpoint handler. Like resources connections, DBs, etc.
 
 Once the endpoint handler finishes the resulting `context` is mapped back as HTTP response. Some especial properties have different uses and they are processed in the following order:
-  - `cookies`: This should be an object specifying cookies to be sent to the user. You can define cookie values and options, like Path, HttpOnly and Secure flags. If any cookie key starts with an `-` it means to clear such cookie (value is used as options to the clear cookie method). Once processed the cookies the property is deleted from the context to continue processing
-    - ```{ cookies: { session: { value: '122345', options: { httpOnly: true, path: '/' } } }``` Set `session` cookie to `122345` with httpOnly flag an `/` Path.
-    - ```{ cookies: { '-session': { path: '/' } } }``` Clear `session` cookie
-  - `redirect`: This allows to make temporal redirects in the response. If this property is present the response processing will end here and make the redirect to the specified path
-    - ```{ redirect: '/' }``` Redirect to `/`
-    - ```{ cookies: { session: { value: '123', options: { httpOnly: true, path: '/' } }, redirect: '/dashboard' }``` Sets `session` cookie, redirects to `/dashboard`
-    - ```{ cookies: { '-session': { path: '/' } }, redirect: '/welcome' }``` Clears `session` cookie, redirects to `/welcome`
-  - Empty payload: If context is empty (also after removing the `cookies` property) it will return a simple HTTP 204
-  - Otherwise the context is sent to the client as JSON payload.
+
+- `cookies`: This should be an object specifying cookies to be sent to the user. You can define cookie values and options, like Path, HttpOnly and Secure flags. If any cookie key starts with an `-` it means to clear such cookie (value is used as options to the clear cookie method). Once processed the cookies the property is deleted from the context to continue processing
+  - `{ cookies: { session: { value: '122345', options: { httpOnly: true, path: '/' } } }` Set `session` cookie to `122345` with httpOnly flag an `/` Path.
+  - `{ cookies: { '-session': { path: '/' } } }` Clear `session` cookie
+- `redirect`: This allows to make temporal redirects in the response. If this property is present the response processing will end here and make the redirect to the specified path
+  - `{ redirect: '/' }` Redirect to `/`
+  - `{ cookies: { session: { value: '123', options: { httpOnly: true, path: '/' } }, redirect: '/dashboard' }` Sets `session` cookie, redirects to `/dashboard`
+  - `{ cookies: { '-session': { path: '/' } }, redirect: '/welcome' }` Clears `session` cookie, redirects to `/welcome`
+- Empty payload: If context is empty (also after removing the `cookies` property) it will return a simple HTTP 204
+- Otherwise the context is sent to the client as JSON payload.
 
 ### Errors
 
 Error handling is simple too. If any endpoint handler function fails (is a promise remember) the resulting error is captured and processed according to the error message. Some words will trigger different HTTP error codes.
-  - `Expectation`: HTTP 417
-  - `NotFound`: HTTP 404, Ex: `PostNotFound` or `NotFoundPost`
-  - `Unauthorized`: HTTP 401.
-  - `Forbidden`: HTTP 403, Ex: `ForbiddenAccessToPost`
-  - `Invalid`: HTTP 400, Ex: `InvalidPostNumberFormat`
-  - If none of the previous cases applies then sadly we return an HTTP 500.
+
+- `Expectation`: HTTP 417
+- `NotFound`: HTTP 404, Ex: `PostNotFound` or `NotFoundPost`
+- `Unauthorized`: HTTP 401.
+- `Forbidden`: HTTP 403, Ex: `ForbiddenAccessToPost`
+- `Invalid`: HTTP 400, Ex: `InvalidPostNumberFormat`
+- If none of the previous cases applies then sadly we return an HTTP 500.
 
 ## Suggestion and feedback
 
 If you use or plan to use `rvl-pipe-express` for your projects and need our help don't hesitate to file and issue here.
-

@@ -1,5 +1,6 @@
 import {
-  createServer, Handler,
+  createServer,
+  Handler,
   startListening,
   stopListening,
   validateRequest,

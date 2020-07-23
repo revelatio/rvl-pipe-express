@@ -9,15 +9,10 @@ const statusEndpoint = each(
 )
 
 const server = each(
-  createServer(
-    [
-      { method: 'get', path: '/status', fn: statusEndpoint }
-    ]
-  ),
+  createServer([{ method: 'get', path: '/status', fn: statusEndpoint }]),
   startListening()
 )
 
-server()
-  .then(ctx => {
-    console.log('Server started')
-  })
+server().then(ctx => {
+  console.log('Server started')
+})

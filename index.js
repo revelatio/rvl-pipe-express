@@ -1,4 +1,10 @@
-const { entrypoint, createServer, startListening, validateRequest, validateResponse } = require('./src/helpers')
+const {
+  entrypoint,
+  createServer,
+  startListening,
+  validateRequest,
+  validateResponse
+} = require('./src/helpers')
 
 module.exports = {
   createServer,

@@ -1,4 +1,4 @@
-import { AsyncFunction, SyncPredicate } from 'rvl-pipe';
+import { Context, AsyncFunction, SyncPredicate } from 'rvl-pipe';
 export declare const startListening: () => AsyncFunction;
 export declare const stopListening: () => AsyncFunction;
 export interface RequestInput {
@@ -26,6 +26,7 @@ export interface Handler {
     handlers?: Handler[];
     path: string;
     middlewares?: any[];
+    ctxMiddlewares?: Array<(ctx: Context) => any>;
     method?: 'get' | 'post' | 'patch' | 'put' | 'delete' | 'use';
     fn?: (inputContext: RequestInput) => Promise<RequestOutput>;
 }

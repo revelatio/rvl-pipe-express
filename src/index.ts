@@ -1,4 +1,4 @@
-import express, {Router} from 'express'
+import express, { Router } from 'express'
 import cookieParser from 'cookie-parser'
 import bodyParser from 'body-parser'
 import { isEmpty, omit, forEachObjIndexed } from 'ramda'
@@ -54,6 +54,7 @@ export interface Handler {
   handlers?: Handler[]
   path: string
   middlewares?: any[]
+  ctxMiddlewares?: Array<(ctx: Context) => any>
   method?: 'get' | 'post' | 'patch' | 'put' | 'delete' | 'use'
   fn?: (inputContext: RequestInput) => Promise<RequestOutput>
 }
@@ -68,12 +69,20 @@ const createHandler = (handlers: Handler[]): AsyncFunction => (
         addHandlers(pathRouter, handler.handlers)
         router.use(
           handler.path,
-          ...[...(handler.middlewares || []), pathRouter]
+          ...[
+            ...(handler.middlewares || []),
+            ...(handler.ctxMiddlewares || []).map(f => f(ctx)),
+            pathRouter
+          ]
         )
       } else if (handler.method && handler.fn) {
         router[handler.method](
           handler.path,
-          ...[...(handler.middlewares || []), wrap(handler.fn)]
+          ...[
+            ...(handler.middlewares || []),
+            ...(handler.ctxMiddlewares || []).map(f => f(ctx)),
+            wrap(handler.fn)
+          ]
         )
       }
     })
