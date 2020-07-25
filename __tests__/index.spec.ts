@@ -1,6 +1,7 @@
 import {
   createServer,
   Handler,
+  HttpError,
   startListening,
   stopListening,
   validateRequest,
@@ -10,15 +11,15 @@ import request from 'supertest'
 import {
   each,
   always,
-  should,
   props,
   equals,
+  should,
   prop,
   AsyncFunction,
+  SyncPredicate,
   Context
 } from 'rvl-pipe'
 import axios from 'axios'
-import { SyncPredicate } from 'rvl-pipe/build'
 
 const mockUserMiddleware = (req: any, __: any, next: any) => {
   req.user = { id: 1234 }
@@ -53,11 +54,7 @@ const createMockAppWithRouters = (): Array<Handler> => {
   ]
 }
 
-const createMockServer = (
-  url: string,
-  endpointHandler: AsyncFunction,
-  middlewares?: any[]
-) => {
+const createMockServer = (url: string, endpointHandler: AsyncFunction, middlewares?: any[]) => {
   return createServer(createMockApp(url, endpointHandler, middlewares))
 }
 
@@ -71,17 +68,10 @@ const createMockServerWithInitializer = (
   endpointHandler: AsyncFunction,
   middlewares?: any[]
 ) => {
-  return each(
-    initializer,
-    createServer(createMockApp(url, endpointHandler, middlewares))
-  )
+  return each(initializer, createServer(createMockApp(url, endpointHandler, middlewares)))
 }
 
-const makeRequest = (
-  method: 'GET' | 'POST',
-  url: string,
-  payload?: Context
-) => (ctx: Context) => {
+const makeRequest = (method: 'GET' | 'POST', url: string, payload?: Context) => (ctx: Context) => {
   if (method === 'GET') {
     return request(ctx.app)
       .get(url)
@@ -116,31 +106,22 @@ const checkResponseBody = (body: Context): AsyncFunction => (ctx: Context) => {
   return Promise.resolve(ctx)
 }
 
-const checkHttpResponseBody = (body: Context): AsyncFunction => (
-  ctx: Context
-) => {
+const checkHttpResponseBody = (body: Context): AsyncFunction => (ctx: Context) => {
   expect(ctx.response.data).toEqual(body)
   return Promise.resolve(ctx)
 }
 
-const checkResponseMessage = (message: string): AsyncFunction => (
-  ctx: Context
-) => {
-  expect(ctx.response.text).toBe(message)
+const checkResponseMessage = (message: string): AsyncFunction => (ctx: Context) => {
+  expect(ctx.response.body.message).toEqual(message)
   return Promise.resolve(ctx)
 }
 
-const checkHeader = (
-  header: string,
-  value: string | string[]
-): AsyncFunction => (ctx: Context) => {
+const checkHeader = (header: string, value: string | string[]): AsyncFunction => (ctx: Context) => {
   expect(ctx.response.headers[header]).toEqual(value)
   return Promise.resolve(ctx)
 }
 
-const createObjectKeysValidator = (keys: string[]): SyncPredicate => (
-  obj: Context
-): boolean => {
+const createObjectKeysValidator = (keys: string[]): SyncPredicate => (obj: Context): boolean => {
   return keys.every(key => key in obj)
 }
 
@@ -186,10 +167,7 @@ test('initializer is applied', () => {
         return Promise.resolve(ctx)
       },
       '/status',
-      each(
-        should(prop('mongo.connection'), 'NotInitialized'),
-        always({ hello: 'world' })
-      )
+      each(should(prop('mongo.connection'), 'NotInitialized'), always({ hello: 'world' }))
     ),
     makeRequest('GET', '/status'),
     checkResponse(200),
@@ -216,10 +194,7 @@ test('GET 404 (middleware)', () => {
 
 test('GET 404 (function)', () => {
   return each(
-    createMockServer(
-      '/status',
-      each(should(always(false), 'NotFoundResource'))
-    ),
+    createMockServer('/status', each(should(always(false), 'NotFoundResource'))),
     makeRequest('GET', '/status'),
     checkResponse(404),
     checkResponseMessage('NotFoundResource')
@@ -228,10 +203,7 @@ test('GET 404 (function)', () => {
 
 test('GET 401 (function)', () => {
   return each(
-    createMockServer(
-      '/status',
-      each(should(always(false), 'UnauthorizedUser'))
-    ),
+    createMockServer('/status', each(should(always(false), 'UnauthorizedUser'))),
     makeRequest('GET', '/status'),
     checkResponse(401),
     checkResponseMessage('UnauthorizedUser')
@@ -258,10 +230,7 @@ test('GET 400 (function)', () => {
 
 test('GET 417 (function)', () => {
   return each(
-    createMockServer(
-      '/status',
-      each(should(always(false), 'ExpectationNotThere'))
-    ),
+    createMockServer('/status', each(should(always(false), 'ExpectationNotThere'))),
     makeRequest('GET', '/status'),
     checkResponse(417),
     checkResponseMessage('ExpectationNotThere')
@@ -274,6 +243,15 @@ test('GET 500 (function)', () => {
     makeRequest('GET', '/status'),
     checkResponse(500),
     checkResponseMessage('JustFail')
+  )()
+})
+
+test('Custom Error', () => {
+  return each(
+    createMockServer('/status', each(should(always(false), new HttpError(400, 'custom-error')))),
+    makeRequest('GET', '/status'),
+    checkResponse(400),
+    checkResponseMessage('custom-error')
   )()
 })
 
@@ -321,21 +299,14 @@ test('set cookie', () => {
 
 test('reset cookie', () => {
   return each(
-    createMockServer(
-      '/status',
-      each(always({ cookies: { '-session': true } }))
-    ),
+    createMockServer('/status', each(always({ cookies: { '-session': true } }))),
     makeRequest('GET', '/status'),
     checkResponse(204),
-    checkHeader('set-cookie', [
-      'session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    ]),
+    checkHeader('set-cookie', ['session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT']),
 
     makeRequest('GET', '/status'),
     checkResponse(204),
-    checkHeader('set-cookie', [
-      'session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    ])
+    checkHeader('set-cookie', ['session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'])
   )()
 })
 

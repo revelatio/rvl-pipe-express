@@ -2,13 +2,7 @@ import express, { Router } from 'express'
 import cookieParser from 'cookie-parser'
 import bodyParser from 'body-parser'
 import { isEmpty, omit, forEachObjIndexed } from 'ramda'
-import {
-  Context,
-  AsyncFunction,
-  each,
-  ContextError,
-  SyncPredicate
-} from 'rvl-pipe'
+import { Context, AsyncFunction, each, SyncPredicate } from 'rvl-pipe'
 
 const withContext = (ctx: Context) => (__: any, res: any, next: any) => {
   res.ctx = { ...ctx }
@@ -59,9 +53,7 @@ export interface Handler {
   fn?: (inputContext: RequestInput) => Promise<RequestOutput>
 }
 
-const createHandler = (handlers: Handler[]): AsyncFunction => (
-  ctx: Context
-) => {
+const createHandler = (handlers: Handler[]): AsyncFunction => (ctx: Context) => {
   const addHandlers = (router: Router, handlers: Handler[]) => {
     handlers.forEach((handler: Handler) => {
       if (handler.handlers) {
@@ -93,8 +85,7 @@ const createHandler = (handlers: Handler[]): AsyncFunction => (
   return Promise.resolve(ctx)
 }
 
-export const createServer = (handlers: Array<Handler>) =>
-  each(createApp(), createHandler(handlers))
+export const createServer = (handlers: Array<Handler>) => each(createApp(), createHandler(handlers))
 
 const sendResponse = (__: any, res: any) => (rawPayload: RequestOutput) => {
   if (!rawPayload) {
@@ -127,45 +118,86 @@ const sendResponse = (__: any, res: any) => (rawPayload: RequestOutput) => {
   return payload
 }
 
-const sendErrorResponse = (__: any, res: any) => (err: ContextError) => {
+export class HttpError extends Error {
+  code: number
+  extra?: string
+
+  constructor(code: number, message: string, extra?: string) {
+    super()
+    this.name = 'HttpError'
+    this.message = message
+    this.code = code
+    this.extra = extra
+  }
+}
+
+const isHttpError = (err: Error): err is HttpError => err.name === 'HttpError'
+
+const sendErrorResponse = (__: any, res: any) => (err: Error | HttpError) => {
+  if (isHttpError(err)) {
+    return res.status(err.code).json({
+      status: 'error',
+      message: err.message,
+      ...(err.extra && { extra: err.extra })
+    })
+  }
+
   if (err.message.includes('Expectation')) {
     return res
       .status(417)
-      .send(err.message)
+      .json({
+        status: 'error',
+        message: err.message
+      })
       .end()
   }
 
   if (err.message.includes('NotFound')) {
     return res
       .status(404)
-      .send(err.message)
+      .json({
+        status: 'error',
+        message: err.message
+      })
       .end()
   }
 
   if (err.message.includes('Unauthorized')) {
     return res
       .status(401)
-      .send(err.message)
+      .json({
+        status: 'error',
+        message: err.message
+      })
       .end()
   }
 
   if (err.message.includes('Forbidden')) {
     return res
       .status(403)
-      .send(err.message)
+      .json({
+        status: 'error',
+        message: err.message
+      })
       .end()
   }
 
   if (err.message.includes('Invalid')) {
     return res
       .status(400)
-      .send(err.message)
+      .json({
+        status: 'error',
+        message: err.message
+      })
       .end()
   }
 
   return res
     .status(500)
-    .send(err.message)
+    .json({
+      status: 'error',
+      message: err.message
+    })
     .end()
 }
 
@@ -181,7 +213,7 @@ const wrap = (fn: AsyncFunction) => (req: any, res: any) => {
     res
   })
     .then(sendResponse(req, res))
-    .catch(err => sendErrorResponse(req, res)(err))
+    .catch(sendErrorResponse(req, res))
 }
 
 const validateIO = (errorType: string, propName?: string) => (
@@ -190,7 +222,7 @@ const validateIO = (errorType: string, propName?: string) => (
   const valid = propName ? validator(ctx[propName]) : validator(ctx)
 
   if (!valid) {
-    return Promise.reject(new ContextError(errorType, ctx))
+    return Promise.reject(new HttpError(400, errorType))
   }
 
   return Promise.resolve(ctx)

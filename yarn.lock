@@ -4691,10 +4691,10 @@ run-parallel@^1.1.2:
   resolved "https://registry.yarnpkg.com/run-parallel/-/run-parallel-1.1.9.tgz#c9dd3a7cf9f4b2c4b6244e173a6ed866e61dd679"
   integrity sha512-DEqnSRTDw/Tc3FXf49zedI638Z9onwUotBMiUFKmrO2sdFKIbXamXGQ3Axd4qgphxKB4kw/qP1w5kTxnfU1B9Q==
 
-rvl-pipe@latest:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/rvl-pipe/-/rvl-pipe-2.0.0.tgz#1b40ce018e62cd1cc37df3654ebf40f5491f5023"
-  integrity sha512-XRLb39sE4TZCN3KwnQMxL0+ya9ZFhnWt9ia5NdnnfLlR7ZloxixyjRdAXA5UnBMLxRPUywngJg1vrNxMWi4OCg==
+rvl-pipe@^2.2.1:
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/rvl-pipe/-/rvl-pipe-2.2.1.tgz#1a00ba9360b539ad5db33d48dcd97f978191cc9e"
+  integrity sha512-+MA/iJzL3U09m42LNdvxYsNWK5gV/dzdx7j5m8GCnTiR/Q55O5kXWlQ/b4lh7mqdqnEVwGvTQUvIdcBS+hjRGg==
 
 rxjs@^6.5.3:
   version "6.5.4"

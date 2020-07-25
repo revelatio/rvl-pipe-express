@@ -31,6 +31,11 @@ export interface Handler {
     fn?: (inputContext: RequestInput) => Promise<RequestOutput>;
 }
 export declare const createServer: (handlers: Array<Handler>) => AsyncFunction;
+export declare class HttpError extends Error {
+    code: number;
+    extra?: string;
+    constructor(code: number, message: string, extra?: string);
+}
 export declare const validateRequest: (validator: SyncPredicate) => AsyncFunction;
 export declare const validateResponse: (validator: SyncPredicate) => AsyncFunction;
 export declare const entrypoint: (fn: AsyncFunction) => (req: any, res: any) => Promise<any>;

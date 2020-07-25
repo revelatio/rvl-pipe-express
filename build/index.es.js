@@ -1,7 +1,7 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
-import { each, ContextError } from 'rvl-pipe';
+import { each } from 'rvl-pipe';
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -17,6 +17,20 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
+/* global Reflect, Promise */
+
+var extendStatics = function(d, b) {
+    extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return extendStatics(d, b);
+};
+
+function __extends(d, b) {
+    extendStatics(d, b);
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+}
 
 var __assign = function() {
     __assign = Object.assign || function __assign(t) {
@@ -593,9 +607,7 @@ var createHandler = function (handlers) { return function (ctx) {
     addHandlers(ctx.app, handlers);
     return Promise.resolve(ctx);
 }; };
-var createServer = function (handlers) {
-    return each(createApp(), createHandler(handlers));
-};
+var createServer = function (handlers) { return each(createApp(), createHandler(handlers)); };
 var sendResponse = function (__, res) { return function (rawPayload) {
     if (!rawPayload) {
         return res.status(204).end();
@@ -621,52 +633,86 @@ var sendResponse = function (__, res) { return function (rawPayload) {
     res.json(payload);
     return payload;
 }; };
+var HttpError = /** @class */ (function (_super) {
+    __extends(HttpError, _super);
+    function HttpError(code, message, extra) {
+        var _this = _super.call(this) || this;
+        _this.name = 'HttpError';
+        _this.message = message;
+        _this.code = code;
+        _this.extra = extra;
+        return _this;
+    }
+    return HttpError;
+}(Error));
+var isHttpError = function (err) { return err.name === 'HttpError'; };
 var sendErrorResponse = function (__, res) { return function (err) {
+    if (isHttpError(err)) {
+        return res.status(err.code).json(__assign({ status: 'error', message: err.message }, (err.extra && { extra: err.extra })));
+    }
     if (err.message.includes('Expectation')) {
         return res
             .status(417)
-            .send(err.message)
+            .json({
+            status: 'error',
+            message: err.message
+        })
             .end();
     }
     if (err.message.includes('NotFound')) {
         return res
             .status(404)
-            .send(err.message)
+            .json({
+            status: 'error',
+            message: err.message
+        })
             .end();
     }
     if (err.message.includes('Unauthorized')) {
         return res
             .status(401)
-            .send(err.message)
+            .json({
+            status: 'error',
+            message: err.message
+        })
             .end();
     }
     if (err.message.includes('Forbidden')) {
         return res
             .status(403)
-            .send(err.message)
+            .json({
+            status: 'error',
+            message: err.message
+        })
             .end();
     }
     if (err.message.includes('Invalid')) {
         return res
             .status(400)
-            .send(err.message)
+            .json({
+            status: 'error',
+            message: err.message
+        })
             .end();
     }
     return res
         .status(500)
-        .send(err.message)
+        .json({
+        status: 'error',
+        message: err.message
+    })
         .end();
 }; };
 var wrap = function (fn) { return function (req, res) {
     return fn(__assign(__assign({}, res.ctx), { body: req.body, headers: req.headers, params: req.params, user: req.user, query: req.query, req: req,
         res: res }))
         .then(sendResponse(req, res))
-        .catch(function (err) { return sendErrorResponse(req, res)(err); });
+        .catch(sendErrorResponse(req, res));
 }; };
 var validateIO = function (errorType, propName) { return function (validator) { return function (ctx) {
     var valid = propName ? validator(ctx[propName]) : validator(ctx);
     if (!valid) {
-        return Promise.reject(new ContextError(errorType, ctx));
+        return Promise.reject(new HttpError(400, errorType));
     }
     return Promise.resolve(ctx);
 }; }; };
@@ -674,5 +720,5 @@ var validateRequest = validateIO('InvalidRequest', 'body');
 var validateResponse = validateIO('InvalidResponse');
 var entrypoint = wrap;
 
-export { createServer, entrypoint, startListening, stopListening, validateRequest, validateResponse };
+export { HttpError, createServer, entrypoint, startListening, stopListening, validateRequest, validateResponse };
 //# sourceMappingURL=index.es.js.map
